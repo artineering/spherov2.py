@@ -79,7 +79,9 @@ def get_tcp_adapter(host: str, port: int = 50004):
                 s.sendall(RequestOp.END)
                 s.close()
 
-        def __init__(self, address):
+        def __init__(self, address, *, on_disconnect=None):
+            self.__on_disconnect = on_disconnect
+            self.__closed = False
             self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__socket.connect((host, port))
             address = address.encode('ascii')
@@ -88,7 +90,7 @@ def get_tcp_adapter(host: str, port: int = 50004):
             self.__sequence_wait = {}
 
             self.__callbacks = {}
-            self.__thread = threading.Thread(target=self.__recv)
+            self.__thread = threading.Thread(target=self.__recv, name='spherov2-tcp-rx', daemon=True)
             self.__thread.start()
             try:
                 self.__send(RequestOp.INIT, to_bytes(
@@ -101,7 +103,7 @@ def get_tcp_adapter(host: str, port: int = 50004):
             while True:
                 try:
                     code = recvall(self.__socket, 1)
-                except:
+                except (OSError, EOFError):
                     break
                 if code == ResponseOp.OK:
                     self.__sequence_wait.pop(
@@ -119,6 +121,16 @@ def get_tcp_adapter(host: str, port: int = 50004):
                     err = Exception(data.decode('utf_8'))
                     self.__sequence_wait.pop(recvall(self.__socket, 1)[
                                              0]).set_exception(err)
+            # socket gone: unblock anyone waiting and report the drop
+            for f in list(self.__sequence_wait.values()):
+                if not f.done():
+                    f.set_exception(ConnectionError('Connection is lost'))
+            if not self.__closed and self.__on_disconnect is not None:
+                self.__on_disconnect()
+
+        @property
+        def is_connected(self):
+            return not self.__closed and self.__thread.is_alive()
 
         def __send(self, cmd, payload):
             if not self.__thread.is_alive():
@@ -129,10 +141,17 @@ def get_tcp_adapter(host: str, port: int = 50004):
             self.__socket.sendall(cmd + bytes([seq]) + payload)
             f.result()
 
-        def close(self):
-            self.__socket.sendall(RequestOp.END)
+        def close(self, disconnect=True):
+            if self.__closed:
+                return
+            self.__closed = True
+            try:
+                self.__socket.sendall(RequestOp.END)
+            except OSError:
+                pass
             self.__socket.close()
-            self.__thread.join()
+            if threading.current_thread() is not self.__thread:
+                self.__thread.join(timeout=5)
 
         def set_callback(self, uuid, cb):
             if uuid in self.__callbacks:

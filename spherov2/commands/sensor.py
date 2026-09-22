@@ -71,11 +71,6 @@ class SteamingDataSizes(IntEnum):
     THIRTY_TWO_BIT = 2
 
 
-class ThermalProtectionStatus(IntEnum):
-    OK = 0
-    WARN = 1
-    CRITICAL = 2
-
 
 class Sensor(Commands):
     _did = 24

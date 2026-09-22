@@ -155,20 +155,33 @@ class Packet(NamedTuple):
                 flags |= Packet.Flags.has_source_id | Packet.Flags.has_target_id
                 sid = 0x1
             packet = Packet(flags, did, cid, self.__seq, tid, sid, bytearray(data or []))
-            self.__seq = (self.__seq + 1) % 0xff
+            self.__seq = (self.__seq + 1) % 0x100
             return packet
 
     class Collector:
+        """Reassembles notifications (which may split or merge packets) into whole packets.
+
+        Resynchronises on every start-of-packet byte so one corrupt notification cannot desync the stream forever.
+        """
+
         def __init__(self, callback):
             self.__callback = callback
             self.__data = []
 
         def add(self, data):
             for b in data:
+                if b == Packet.Encoding.start:
+                    if self.__data:
+                        # a fresh SOP while collecting means the previous packet was truncated; drop it
+                        self.__data = []
+                    self.__data.append(b)
+                    continue
+                if not self.__data:
+                    # garbage before any SOP: ignore
+                    continue
                 self.__data.append(b)
                 if b == Packet.Encoding.end:
-                    pkt = self.__data
-                    self.__data = []
+                    pkt, self.__data = self.__data, []
                     if len(pkt) < 6:
                         raise PacketDecodingException(f'Very small packet {[hex(x) for x in pkt]}')
                     self.__callback(Packet.parse_response(pkt))
@@ -262,7 +275,7 @@ class SensorControl:
     def __process_sensor_stream_data(self, sensor_data: List[float]):
         data = {}
 
-        def __new_data():
+        def __new_data(components):
             n = {}
             for name, component in components.items():
                 d = sensor_data.pop(0)
@@ -273,10 +286,10 @@ class SensorControl:
 
         for sensor, components in self.__toy.sensors.items():
             if sensor in self.__enabled:
-                __new_data()
+                __new_data(components)
         for sensor, components in self.__toy.extended_sensors.items():
             if sensor in self.__enabled_extended:
-                __new_data()
+                __new_data(components)
 
         for f in self.__listeners:
             threading.Thread(target=f, args=(data,)).start()

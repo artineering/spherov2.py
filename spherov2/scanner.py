@@ -1,6 +1,6 @@
 import importlib
 from functools import partial
-from typing import Iterable, List, Type, Callable
+from typing import Callable, Iterable, List, Optional, Type
 
 from spherov2.commands.sphero import Sphero
 from spherov2.toy import Toy
@@ -16,7 +16,7 @@ from spherov2.toy.sprk2 import Sprk2
 
 
 class ToyNotFoundError(Exception):
-    ...
+    """No toy matching the requested name / type was found during the scan."""
 
 
 def all_toys(cls=Toy):
@@ -26,8 +26,8 @@ def all_toys(cls=Toy):
         yield from all_toys(sub)
 
 
-def find_toys(*, timeout=5.0, toy_types: Iterable[Type[Toy]] = None,
-              toy_names: Iterable[str] = None, adapter=None) -> List[Toy]:
+def find_toys(*, timeout: float = 5.0, toy_types: Optional[Iterable[Type[Toy]]] = None,
+              toy_names: Optional[Iterable[str]] = None, adapter=None) -> List[Toy]:
     """Find toys that matches the criteria given.
 
     :param timeout: Device scanning timeout, in seconds.
@@ -68,7 +68,7 @@ def find_toys(*, timeout=5.0, toy_types: Iterable[Type[Toy]] = None,
     return ret
 
 
-def find_toy(*, toy_name: str = None, **kwargs) -> Toy:
+def find_toy(*, toy_name: Optional[str] = None, **kwargs) -> Toy:
     """Find a single toy that matches the criteria given.
 
     :param toy_name: A string of toy name that needs to be scanned. Set to ``None`` to scan toy with all kinds of names.
@@ -82,7 +82,8 @@ def find_toy(*, toy_name: str = None, **kwargs) -> Toy:
     """
     toys = find_toys(toy_names=[toy_name] if toy_name else None, **kwargs)
     if not toys:
-        raise ToyNotFoundError
+        wanted = toy_name or ', '.join(t.toy_type.display_name for t in kwargs.get('toy_types') or []) or 'any toy'
+        raise ToyNotFoundError(f'Could not find {wanted}. Is it awake, charged and not connected to another app?')
     return toys[0]
 
 

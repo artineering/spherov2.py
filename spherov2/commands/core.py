@@ -17,13 +17,6 @@ class ChargerStates(IntEnum):
     UNKNOWN = 2
 
 
-class PowerStates(IntEnum):
-    UNKNOWN = 0
-    CHARGING = 1
-    OK = 2
-    LOW = 3
-    CRITICAL = 4
-
 
 class Core(Commands):
     _did = 0

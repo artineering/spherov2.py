@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from enum import IntEnum
-from functools import partialmethod, lru_cache
+from functools import cached_property, partialmethod
 
 from spherov2.commands.api_and_shell import ApiAndShell
 from spherov2.commands.connection import Connection
@@ -159,27 +159,22 @@ class Mini(ToyV2):
     enable_desktoy_mode = SystemMode.enable_desktoy_mode  # EnableDesktoyModeCommand
 
     # Controls - V2
-    @property
-    @lru_cache(None)
+    @cached_property
     def drive_control(self):
         return DriveControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def multi_led_control(self):
         return LedControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def sensor_control(self):
         return SensorControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def stats_control(self):
         return StatsControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def firmware_update_control(self):
         return FirmwareUpdateControl(self)

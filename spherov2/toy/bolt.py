@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from enum import IntEnum
-from functools import partialmethod, lru_cache
+from functools import cached_property, partialmethod
 
 from spherov2.commands.api_and_shell import ApiAndShell
 from spherov2.commands.connection import Connection
@@ -249,18 +249,15 @@ class BOLT(ToyV2):
     write_config_block = SystemInfo.write_config_block  # WriteConfigBlockCommand
 
     # Controls - V2
-    @property
-    @lru_cache(None)
+    @cached_property
     def animation_control(self):
         return AnimationControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def drive_control(self):
         return DriveControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def multi_led_control(self):
         return LedControl(self)
 
@@ -270,7 +267,6 @@ class BOLT(ToyV2):
             self._sensor_controller = SensorControl(self)
         return self._sensor_controller
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def stats_control(self):
         return StatsControl(self)

@@ -1,5 +1,5 @@
 from enum import IntEnum
-from functools import lru_cache, partialmethod
+from functools import cached_property, partialmethod
 
 from spherov2.commands.api_and_shell import ApiAndShell
 from spherov2.commands.connection import Connection
@@ -258,17 +258,14 @@ class RVR(ToyV2):
     enable_extended_life_test = partialmethod(FactoryTest.enable_extended_life_test, proc=Processors.PRIMARY)
     get_factory_mode_status = FactoryTest.get_factory_mode_status
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def drive_control(self):
         return DriveControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def multi_led_control(self):
         return LedControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def sensor_control(self):
         return StreamingControl(self)

@@ -125,6 +125,7 @@ class Packet:
             self.__data = bytearray()
 
         def add(self, data):
+            data = bytearray(data)
             if not self.__data:
                 while data and data[0] != Packet.SOP:
                     data.pop(0)
@@ -139,15 +140,16 @@ class Packet:
                     if dlen > len(remain):
                         break
                     self.__callback(Packet.parse_response(payload[:dlen + 3]))
-                    self.__data = remain[dlen:]
+                    self.__data = bytearray(remain[dlen:])
                 elif sop2 == Packet.ASYNC:
                     _, dlen_msb, dlen_lsb, *remain = payload
                     dlen = (dlen_msb << 8) | dlen_lsb
                     if dlen > len(remain):
                         break
                     self.__callback(Packet.parse_async(payload[:dlen + 3]))
-                    self.__data = remain[dlen:]
+                    self.__data = bytearray(remain[dlen:])
                 else:
+                    self.__data.clear()
                     raise PacketDecodingException('Unexpected start of packet 2')
 
 
@@ -175,7 +177,7 @@ class DriveControl:
 
     def set_raw_motors(self, left_mode, left_speed, right_mode, right_speed):
         self.__toy.set_raw_motors(left_mode, left_speed, right_mode, right_speed)
-        
+
     def reset_heading(self):
         self.set_stabilization(False)
         self.__toy.set_heading(0)
@@ -212,7 +214,7 @@ class SensorControl:
     def __sensor_streaming_data(self, sensor_data: List[int]):
         data = {}
 
-        def __new_data():
+        def __new_data(components):
             n = {}
             for name, component in components.items():
                 d = sensor_data.pop(0)
@@ -225,10 +227,10 @@ class SensorControl:
 
         for sensor, components in self.__toy.sensors.items():
             if sensor in self.__enabled:
-                __new_data()
+                __new_data(components)
         for sensor, components in self.__toy.extended_sensors.items():
             if sensor in self.__enabled_extended:
-                __new_data()
+                __new_data(components)
 
         for f in self.__listeners:
             threading.Thread(target=f, args=(data,)).start()

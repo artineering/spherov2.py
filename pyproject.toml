@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spherov2"
+version = "0.13.0"
+description = "An unofficial Bluetooth low energy library for Sphero toys in Python."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [{ name = "Hanbang Wang", email = "hanbangw@cis.upenn.edu" }]
+keywords = ["robotics", "Sphero", "toy", "bluetooth", "ble"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Robot Framework :: Library",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "bleak>=0.21",
+    "numpy>=1.21",
+    "transforms3d>=0.4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "ruff>=0.5"]
+docs = ["sphinx", "sphinx-rtd-theme", "m2r2"]
+
+[project.urls]
+Homepage = "https://github.com/artificial-intelligence-class/spherov2.py"
+Documentation = "https://spherov2.readthedocs.io/"
+Issues = "https://github.com/artificial-intelligence-class/spherov2.py/issues"
+
+[tool.setuptools.packages.find]
+include = ["spherov2", "spherov2.*"]
+exclude = ["spherov2.test", "spherov2.test.*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B"]
+ignore = ["E501", "B006", "B008", "E731"]

@@ -15,7 +15,6 @@ An unofficial Python library for [Sphero](https://sphero.com/) toys that support
 - [x] Sphero RVR
 
 Current Progress:
-- Found a better way to decompile, fixing a few things like Controls, Command Queueing, and Waiting for responses
 - [ ] Controls
 	- [ ] Animation Control
 	- [ ] Drive Control
@@ -30,7 +29,7 @@ This project uses the [hbldh/bleak](https://github.com/hbldh/bleak) Bluetooth Lo
 
 ## Usage
 
-To install the library, run `pip install spherov2`. Python version `>= 3.7` are supported.
+To install the library, run `pip install spherov2`. Python `>= 3.9` is supported; the BLE dependency `bleak` is installed automatically.
 
 The library currently has two adapters, `BleakAdapter` and `TCPAdapter`. `BleakAdapter` is used by default when adapter is not specified, which connects to toys using the local Bluetooth adapter. For example:
 
@@ -53,7 +52,11 @@ with scanner.find_toy(adapter=get_tcp_adapter('localhost')) as toy:
 
 The TCP server is written in asynchronous fashion using `asyncio`, so that it supports `bleak` on all platforms.
 
-On whichever device you decide to connect to the toys, you have to first install the BLE library by `pip install bleak`.
+### Connection loss, timeouts and logging
+
+If a toy stops responding, commands raise the builtin `TimeoutError` (default 10 s, tunable via `toy.response_timeout`). If the BLE link drops, pending and subsequent commands raise `spherov2.toy.ToyDisconnectedError`, and you can be notified with `toy.add_disconnect_listener(callback)`.
+
+The library logs through the standard `logging` module under the `spherov2` namespace. `logging.getLogger('spherov2').setLevel(logging.DEBUG)` prints every packet sent and received, which is useful when reverse-engineering a toy.
 
 ### Scanner
 
@@ -75,6 +78,16 @@ toy = scanner.find_toy()
 with SpheroEduAPI(toy) as api:
     api.spin(360, 1)
 ```
+
+## Development
+
+```
+pip install -e ".[dev]"
+ruff check spherov2 tests examples
+pytest
+```
+
+The unit tests need no hardware: they drive the toy classes through an in-memory fake adapter. Scripts that exercise a real robot are in `examples/`.
 
 ## Acknowledgments
 

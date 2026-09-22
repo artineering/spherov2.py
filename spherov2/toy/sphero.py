@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from functools import partialmethod, lru_cache
+from functools import cached_property, partialmethod
 
 from spherov2.commands.async_ import Async
 from spherov2.commands.bootloader import Bootloader
@@ -121,8 +121,7 @@ class Sphero(Toy):
     set_stabilization = SpheroCmd.set_stabilization
 
     # Controls - V1
-    @property
-    @lru_cache(None)
+    @cached_property
     def drive_control(self):
         return DriveControl(self)
 
@@ -132,17 +131,14 @@ class Sphero(Toy):
     # def multi_led_control(self):
     #    return LedControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def sensor_control(self):
         return SensorControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def stats_control(self):
         return StatsControl(self)
 
-    @property
-    @lru_cache(None)
+    @cached_property
     def firmware_update_control(self):
         return FirmwareUpdateControl(self)

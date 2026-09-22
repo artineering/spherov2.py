@@ -132,7 +132,7 @@ class SpheroEduAPI:
         self.__thread.join()
         try:
             ToyUtil.sleep(self.__toy)
-        except:
+        except Exception:
             pass
         self.__toy.__exit__(*args)
 

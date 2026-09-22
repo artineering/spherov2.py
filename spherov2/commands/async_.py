@@ -1,5 +1,5 @@
 import struct
-from enum import IntEnum, IntFlag
+from enum import IntFlag
 
 from spherov2.listeners.async_ import CollisionDetected
 from spherov2.listeners.core import PowerStates
@@ -18,13 +18,6 @@ class GyroMaxExceedsFlags(IntFlag):
     Z_POSITIVE = 0x10  # 0b10000
     Z_NEGATIVE = 0x20  # 0b100000
 
-
-class PowerStates(IntEnum):
-    UNKNOWN = 0
-    CHARGING = 1
-    OK = 2
-    LOW = 3
-    CRITICAL = 4
 
 
 class Async:
