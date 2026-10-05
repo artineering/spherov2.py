@@ -1,6 +1,6 @@
 # spherov2.py
 
-![status](https://img.shields.io/pypi/status/spherov2?style=for-the-badge) ![python version](https://img.shields.io/pypi/pyversions/spherov2?style=for-the-badge) [![pypi](https://img.shields.io/pypi/v/spherov2?style=for-the-badge)](https://pypi.org/project/spherov2/) [![docs](https://img.shields.io/readthedocs/spherov2?style=for-the-badge)](https://spherov2.readthedocs.io/en/latest/) [![license](https://img.shields.io/pypi/l/spherov2?style=for-the-badge)](LICENSE) ![last commit](https://img.shields.io/github/last-commit/artificial-intelligence-class/spherov2.py?style=for-the-badge)
+![status](https://img.shields.io/pypi/status/spherov2?style=for-the-badge) ![python version](https://img.shields.io/pypi/pyversions/spherov2?style=for-the-badge) [![pypi](https://img.shields.io/pypi/v/spherov2?style=for-the-badge)](https://pypi.org/project/spherov2/) [![docs](https://img.shields.io/readthedocs/spherov2?style=for-the-badge)](https://spherov2.readthedocs.io/en/latest/) [![license](https://img.shields.io/pypi/l/spherov2?style=for-the-badge)](LICENSE) ![last commit](https://img.shields.io/github/last-commit/artineering/spherov2.py?style=for-the-badge)
 
 An unofficial Python library for [Sphero](https://sphero.com/) toys that supports its Version 2 Bluetooth low energy API described [here](https://sdk.sphero.com/docs/api_spec/general_api/). Toys that are supported includes (implemented ones are checked):
 
@@ -27,9 +27,22 @@ The logic is written based on reverse-engineering the official [Sphero Edu for A
 
 This project uses the [hbldh/bleak](https://github.com/hbldh/bleak) Bluetooth Low Energy library, which works across all platforms.
 
+## About this fork
+
+This is a maintained fork of [artificial-intelligence-class/spherov2.py](https://github.com/artificial-intelligence-class/spherov2.py), modernized for current Python and `bleak` releases. Highlights of the upgrade (version `0.13.0`, full details in [CHANGELOG.md](CHANGELOG.md)):
+
+- **Current `bleak` support (0.21 → 3.x)** — `bleak` is now a declared dependency, scanner and GATT write calls use the current keyword APIs, and the TCP relay server no longer crashes on disconnect.
+- **Python 3.9 – 3.13** — packaging moved from `setup.py` to `pyproject.toml`; the TCP server runs under `asyncio.run()` so it works on Python 3.12+.
+- **Robust connections** — dropped BLE links are detected, pending commands fail fast with `ToyDisconnectedError`, and `toy.add_disconnect_listener()` lets applications react. Unanswered commands raise the builtin `TimeoutError` with the toy and packet id.
+- **Packet resynchronisation** — a corrupt or truncated notification no longer desynchronises the v2 packet stream; the collector recovers on the next start-of-packet byte. v2 sequence numbers now wrap correctly at 256.
+- **Lighter listener dispatch** — sensor/collision callbacks run on a shared `ThreadPoolExecutor` instead of a new thread per packet, and listener exceptions are logged instead of silently lost.
+- **`BleakAdapter` improvements** — `connect_timeout`, `is_connected`, MTU-derived `write_chunk_size`, `read()` and `characteristics()`; scanning also works inside an already-running event loop (Jupyter, GUI apps).
+- **Logging** — the library logs through `logging` under the `spherov2` namespace instead of commented-out `print` calls.
+- **Tests and CI** — a hardware-free `pytest` suite with an in-memory fake adapter, run with `ruff` on Linux/macOS/Windows × Python 3.9–3.13 via GitHub Actions. Hardware scripts moved to `examples/`.
+
 ## Usage
 
-To install the library, run `pip install spherov2`. Python `>= 3.9` is supported; the BLE dependency `bleak` is installed automatically.
+To install the library, run `pip install spherov2`, or install this fork directly with `pip install git+https://github.com/artineering/spherov2.py`. Python `>= 3.9` is supported; the BLE dependency `bleak` is installed automatically.
 
 The library currently has two adapters, `BleakAdapter` and `TCPAdapter`. `BleakAdapter` is used by default when adapter is not specified, which connects to toys using the local Bluetooth adapter. For example:
 
@@ -99,3 +112,7 @@ It is published as an open-source library under the [MIT License](LICENSE).
 
 * **Hanbang Wang** - [https://www.cis.upenn.edu/~hanbangw/](https://www.cis.upenn.edu/~hanbangw/)
 * **Elionardo Feliciano**
+
+## Maintainers
+
+* **Siddharth Vaghela** - maintainer of the [artineering/spherov2.py](https://github.com/artineering/spherov2.py) fork
