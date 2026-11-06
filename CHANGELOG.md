@@ -3,6 +3,15 @@
 ## 0.13.0 (unreleased)
 
 ### Fixed
+- A timed-out BLE connect left the toy half-connected at the OS level: the timeout was enforced from the calling
+  thread and the event loop was stopped before bleak could cancel the pending connection, so the toy stopped
+  advertising and every later attempt timed out too. The timeout is now enforced on the adapter's loop, a failed
+  connect always disconnects explicitly, and `close()` lets bleak's pending tasks finish their cleanup before the loop
+  stops (`BleakAdapter.cleanup_timeout`, default 5 s). A connect timeout now raises the builtin `TimeoutError`.
+- A normal `close()` reported itself as an unexpected disconnect (bleak fires its disconnect callback before
+  `disconnect()` returns), so `Toy` disconnect listeners ran on every clean exit.
+- `BleakAdapter` leaked its event-loop thread if creating the `BleakClient` raised, and concurrent `close()` calls or a
+  write racing `close()` could raise `RuntimeError` / `ValueError` instead of `ConnectionError`.
 - `bleak` was never declared as a dependency; `pip install spherov2` produced an `ImportError` on first scan.
 - Compatibility with current `bleak` (0.21 → 3.x): scanner calls now use keyword arguments, `write_gatt_char`
   passes `response=` explicitly, and `tcp_server` no longer calls the `is_connected` property as a coroutine

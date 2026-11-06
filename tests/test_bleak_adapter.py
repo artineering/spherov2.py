@@ -59,3 +59,132 @@ def test_connect_failure_closes_loop_and_raises(monkeypatch):
     monkeypatch.setattr(bleak, 'BleakClient', FailingClient)
     with pytest.raises(bleak.BleakError):
         bleak_adapter.BleakAdapter('aa:bb', connect_timeout=1)
+
+
+# ---------------------------------------------------------------------------------------------- connection lifecycle
+#
+# FakeBleakClient mimics the bleak behaviours that matter for teardown:
+#  * a cancelled connect() needs further loop iterations to undo the partial link (BlueZ awaits a D-Bus Disconnect);
+#  * connect() leaves a background task that sends Disconnect when cancelled (BlueZ's disconnect monitor);
+#  * disconnect() fires disconnected_callback *before* it returns, even for a requested disconnect.
+
+import threading  # noqa: E402
+import time  # noqa: E402
+
+
+def _ble_threads():
+    return [t for t in threading.enumerate() if t.name.startswith('spherov2-ble-') and t.is_alive()]
+
+
+class FakeBleakClient:
+    connect_delay = 0.0
+    log = []
+
+    def __init__(self, address, disconnected_callback=None, timeout=None):
+        self._cb = disconnected_callback
+        self.is_connected = False
+        FakeBleakClient.last = self
+
+    async def connect(self):
+        try:
+            await asyncio.sleep(self.connect_delay)
+        except asyncio.CancelledError:
+            await asyncio.sleep(0.05)  # cleanup that needs loop time
+            FakeBleakClient.log.append('connect-cleanup')
+            raise
+        self.is_connected = True
+        asyncio.get_running_loop().create_task(self._monitor())
+
+    async def _monitor(self):
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            await asyncio.sleep(0.01)
+            FakeBleakClient.log.append('monitor-cleanup')
+            raise
+
+    async def disconnect(self):
+        FakeBleakClient.log.append('disconnect')
+        if self.is_connected:
+            self.is_connected = False
+            if self._cb:
+                self._cb(self)
+
+    async def write_gatt_char(self, uuid, data, response=True):
+        FakeBleakClient.log.append('write')
+
+    def drop(self):
+        self.is_connected = False
+        self._cb(self)
+
+
+@pytest.fixture
+def fake_client(monkeypatch):
+    FakeBleakClient.connect_delay = 0.0
+    FakeBleakClient.log = []
+    monkeypatch.setattr(bleak, 'BleakClient', FakeBleakClient)
+    before = set(_ble_threads())
+    yield FakeBleakClient
+    deadline = time.monotonic() + 2
+    while set(_ble_threads()) - before and time.monotonic() < deadline:
+        time.sleep(0.01)
+    assert not set(_ble_threads()) - before, 'BLE loop thread leaked'
+
+
+def test_connect_timeout_lets_bleak_clean_up(fake_client):
+    fake_client.connect_delay = 10
+    with pytest.raises(TimeoutError):
+        bleak_adapter.BleakAdapter('aa:bb', connect_timeout=0.2)
+    # bleak's cancellation cleanup ran to completion, and we explicitly disconnected afterwards
+    assert fake_client.log == ['connect-cleanup', 'disconnect']
+
+
+def test_close_lets_background_tasks_finish(fake_client):
+    adapter = bleak_adapter.BleakAdapter('aa:bb')
+    adapter.close()
+    assert 'disconnect' in fake_client.log
+    assert 'monitor-cleanup' in fake_client.log
+
+
+def test_requested_disconnect_is_not_reported_as_a_drop(fake_client):
+    calls = []
+    adapter = bleak_adapter.BleakAdapter('aa:bb', on_disconnect=lambda: calls.append(1))
+    adapter.close()
+    assert calls == []
+
+
+def test_unexpected_drop_is_reported(fake_client):
+    calls = []
+    adapter = bleak_adapter.BleakAdapter('aa:bb', on_disconnect=lambda: calls.append(1))
+    fake_client.last.drop()
+    assert calls == [1]
+    adapter.close()
+
+
+def test_client_construction_failure_does_not_leak_loop_thread(monkeypatch, fake_client):
+    def boom(*a, **kw):
+        raise bleak.BleakError('no backend')
+
+    monkeypatch.setattr(bleak, 'BleakClient', boom)
+    with pytest.raises(bleak.BleakError):
+        bleak_adapter.BleakAdapter('aa:bb')
+
+
+def test_concurrent_close_is_safe(fake_client):
+    adapter = bleak_adapter.BleakAdapter('aa:bb')
+    errors = []
+
+    def close():
+        try:
+            adapter.close()
+        except Exception as e:  # pragma: no cover - failure path
+            errors.append(e)
+
+    threads = [threading.Thread(target=close) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == []
+    with pytest.raises(ConnectionError):
+        adapter.write('x', b'\x00')
